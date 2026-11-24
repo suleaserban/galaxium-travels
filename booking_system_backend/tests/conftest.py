@@ -9,8 +9,14 @@ from sqlalchemy.pool import StaticPool
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from models import Base
+from models import Base, Flight, FlightSeatClass, SeatClass
 from db import SessionLocal
+
+PRICES = {
+    SeatClass.ECONOMY: 1000000,
+    SeatClass.BUSINESS: 2000000,
+    SeatClass.GALAXIUM: 4000000,
+}
 
 # Create in-memory SQLite database for testing
 SQLALCHEMY_DATABASE_URL = "sqlite:///:memory:"
@@ -78,14 +84,12 @@ def sample_user_data():
 
 @pytest.fixture
 def sample_flight_data():
-    """Sample flight data for testing."""
+    """Sample flight data for testing (seat classes are added via create_flight)."""
     return {
         "origin": "Earth",
         "destination": "Mars",
         "departure_time": "2099-01-01T09:00:00Z",
-        "arrival_time": "2099-01-01T17:00:00Z",
-        "price": 1000000,
-        "seats_available": 5
+        "arrival_time": "2099-01-01T17:00:00Z"
     }
 
 
@@ -95,5 +99,28 @@ def sample_booking_data():
     return {
         "user_id": 1,
         "name": "Test User",
-        "flight_id": 1
+        "flight_id": 1,
+        "seat_class": "economy"
     }
+
+
+@pytest.fixture
+def create_flight(db_session, sample_flight_data):
+    """Factory that creates a flight with its seat class rows.
+
+    `seats` maps SeatClass -> seats_available. Only the given classes are created,
+    so omitted classes are "not offered" on the flight. Defaults to 5 seats in every class.
+    """
+    def _create_flight(seats=None):
+        if seats is None:
+            seats = {sc: 5 for sc in SeatClass}
+        flight = Flight(**sample_flight_data)
+        flight.seat_classes = [
+            FlightSeatClass(seat_class=sc, price=PRICES[sc], seats_available=n)
+            for sc, n in seats.items()
+        ]
+        db_session.add(flight)
+        db_session.commit()
+        return flight
+
+    return _create_flight

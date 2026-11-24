@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Modal, Input, Button } from '../common';
 import { getUserByCredentials, registerUser, isErrorResponse } from '../../services/api';
+import type { ErrorResponse } from '../../types';
 import { useUser } from '../../hooks/useUser';
 import toast from 'react-hot-toast';
 
@@ -17,11 +18,21 @@ export const UserIdentification = ({ isOpen, onClose, onSuccess }: UserIdentific
   const [isLoading, setIsLoading] = useState(false);
   const [isNewUser, setIsNewUser] = useState(false);
 
+  const isValidEmail = (email: string): boolean => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!name.trim() || !email.trim()) {
       toast.error('Please fill in all fields');
+      return;
+    }
+
+    if (!isValidEmail(email.trim())) {
+      toast.error('Please enter a valid email address');
       return;
     }
 
@@ -57,8 +68,9 @@ export const UserIdentification = ({ isOpen, onClose, onSuccess }: UserIdentific
         onSuccess();
         onClose();
       }
-    } catch (error: any) {
-      toast.error(error.details || error.error || 'An error occurred');
+    } catch (error) {
+      const err = error as Partial<ErrorResponse>;
+      toast.error(err.details || err.error || 'An error occurred');
     } finally {
       setIsLoading(false);
     }

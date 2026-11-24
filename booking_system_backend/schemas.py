@@ -1,5 +1,16 @@
 from pydantic import BaseModel, EmailStr
-from typing import Optional
+from typing import List, Optional
+
+from models import SeatClass
+
+
+class SeatClassOut(BaseModel):
+    seat_class: SeatClass
+    price: int
+    seats_available: int
+
+    class Config:
+        from_attributes = True
 
 
 class FlightOut(BaseModel):
@@ -8,8 +19,7 @@ class FlightOut(BaseModel):
     destination: str
     departure_time: str
     arrival_time: str
-    price: int
-    seats_available: int
+    seat_classes: List[SeatClassOut]
 
     class Config:
         from_attributes = True
@@ -19,12 +29,14 @@ class BookingRequest(BaseModel):
     user_id: int
     name: str
     flight_id: int
+    seat_class: SeatClass
 
 
 class BookingOut(BaseModel):
     booking_id: int
     user_id: int
     flight_id: int
+    seat_class: SeatClass
     status: str
     booking_time: str
 

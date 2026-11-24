@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import { UserProvider } from './hooks/useUser';
+import { UserProvider } from './hooks/UserProvider';
 import { Layout } from './components/layout/Layout';
 import { Home } from './pages/Home';
 import { Flights } from './pages/Flights';

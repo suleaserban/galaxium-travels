@@ -1,4 +1,5 @@
 import { format, parseISO } from 'date-fns';
+import type { Flight, FlightSeatClass, SeatClass } from '../types';
 
 /**
  * Format a date string to a readable format
@@ -66,7 +67,7 @@ export const getRelativeTime = (dateString: string): string => {
     if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)} hours ago`;
     if (diffInSeconds < 2592000) return `${Math.floor(diffInSeconds / 86400)} days ago`;
     return formatDateShort(dateString);
-  } catch (error) {
+  } catch {
     return dateString;
   }
 };
@@ -95,9 +96,39 @@ export const calculateDuration = (
     }
     
     return `${hours}h ${minutes}m`;
-  } catch (error) {
+  } catch {
     return 'N/A';
   }
 };
+
+/**
+ * Display label per seat class. Key order (economy, business, galaxium) is the
+ * display order; the API does not guarantee class order.
+ */
+export const SEAT_CLASS_LABELS: Record<SeatClass, string> = {
+  economy: 'Economy',
+  business: 'Business',
+  galaxium: 'Galaxium',
+};
+
+export const getSeatClassLabel = (seatClass: SeatClass): string =>
+  SEAT_CLASS_LABELS[seatClass];
+
+/**
+ * Find the entry for a given seat class on a flight (undefined if not offered)
+ */
+export const getSeatClass = (
+  flight: Flight,
+  seatClass: SeatClass
+): FlightSeatClass | undefined =>
+  flight.seat_classes.find((sc) => sc.seat_class === seatClass);
+
+/**
+ * Lowest price across all classes of a flight (undefined if no classes)
+ */
+export const getLowestPrice = (flight: Flight): number | undefined =>
+  flight.seat_classes.length > 0
+    ? Math.min(...flight.seat_classes.map((sc) => sc.price))
+    : undefined;
 
 // Made with Bob

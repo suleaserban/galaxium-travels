@@ -35,8 +35,8 @@ The server starts on port **8080** with:
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/api/flights` | List all available flights |
-| POST | `/api/book` | Book a flight |
+| GET | `/api/flights` | List all available flights with per-class price and seats (`seat_classes`) |
+| POST | `/api/book` | Book a seat in a class (`economy`, `business`, `galaxium`) on a flight |
 | GET | `/api/bookings/{user_id}` | Get user's bookings |
 | POST | `/api/cancel/{booking_id}` | Cancel a booking |
 | POST | `/api/register` | Register a new user |
@@ -46,8 +46,8 @@ The server starts on port **8080** with:
 
 | Tool | Description |
 |------|-------------|
-| `list_flights` | List all available flights |
-| `book_flight` | Book a seat on a flight |
+| `list_flights` | List all available flights with per-class price and seats |
+| `book_flight` | Book a seat in a class (`economy`, `business`, `galaxium`) on a flight |
 | `get_bookings` | Get user's bookings |
 | `cancel_booking` | Cancel a booking |
 | `register_user` | Register a new user |
@@ -66,10 +66,10 @@ curl -X POST http://localhost:8080/api/register \
   -H "Content-Type: application/json" \
   -d '{"name": "John Doe", "email": "john@example.com"}'
 
-# Book a flight
+# Book a flight (seat_class: economy, business or galaxium)
 curl -X POST http://localhost:8080/api/book \
   -H "Content-Type: application/json" \
-  -d '{"user_id": 1, "name": "Alice", "flight_id": 1}'
+  -d '{"user_id": 1, "name": "Alice", "flight_id": 1, "seat_class": "economy"}'
 
 # Get bookings
 curl http://localhost:8080/api/bookings/1
@@ -85,7 +85,7 @@ Connect to `http://localhost:8080/mcp` and use the available tools:
 ```
 list_flights()
 register_user(name="John Doe", email="john@example.com")
-book_flight(user_id=1, name="Alice", flight_id=1)
+book_flight(user_id=1, name="Alice", flight_id=1, seat_class="economy")
 get_bookings(user_id=1)
 cancel_booking(booking_id=1)
 ```
