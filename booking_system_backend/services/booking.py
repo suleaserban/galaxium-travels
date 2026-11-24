@@ -1,11 +1,11 @@
 from sqlalchemy.orm import Session
 from datetime import datetime
-from models import User, Flight, Booking
+from models import User, Flight, FlightSeatClass, Booking, SeatClass
 from schemas import BookingOut, ErrorResponse
 
 
-def book_flight(db: Session, user_id: int, name: str, flight_id: int) -> BookingOut | ErrorResponse:
-    """Book a seat on a specific flight for a user."""
+def book_flight(db: Session, user_id: int, name: str, flight_id: int, seat_class: SeatClass) -> BookingOut | ErrorResponse:
+    """Book a seat of a specific class on a specific flight for a user."""
     # Check flight exists
     flight = db.query(Flight).filter(Flight.flight_id == flight_id).first()
     if not flight:
@@ -15,12 +15,16 @@ def book_flight(db: Session, user_id: int, name: str, flight_id: int) -> Booking
             details=f"The specified flight_id {flight_id} does not exist in our system. Please check the flight_id or use list_flights to see available flights."
         )
 
-    # Check seats available
-    if flight.seats_available < 1:
+    # Check the seat class is offered on the flight and has seats available
+    seat_class_row = db.query(FlightSeatClass).filter(
+        FlightSeatClass.flight_id == flight_id,
+        FlightSeatClass.seat_class == seat_class
+    ).first()
+    if not seat_class_row or seat_class_row.seats_available < 1:
         return ErrorResponse(
             error="No seats available",
             error_code="NO_SEATS_AVAILABLE",
-            details="The flight is fully booked. Please check other flights or try again later if seats become available."
+            details=f"No {seat_class.value} seats are available on this flight. The class may be fully booked or not offered on this flight. Please check other classes or flights, or try again later if seats become available."
         )
 
     # Check user exists and name matches
@@ -41,10 +45,11 @@ def book_flight(db: Session, user_id: int, name: str, flight_id: int) -> Booking
             )
 
     # Create booking
-    flight.seats_available -= 1
+    seat_class_row.seats_available -= 1
     new_booking = Booking(
         user_id=user_id,
         flight_id=flight_id,
+        seat_class=seat_class,
         status="booked",
         booking_time=datetime.utcnow().isoformat()
     )
@@ -71,10 +76,13 @@ def cancel_booking(db: Session, booking_id: int) -> BookingOut | ErrorResponse:
             details=f"Booking {booking_id} is already cancelled and cannot be cancelled again. The booking status is currently '{booking.status}'. If you need to make changes, please contact support."
         )
 
-    # Restore seat
-    flight = db.query(Flight).filter(Flight.flight_id == booking.flight_id).first()
-    if flight:
-        flight.seats_available += 1
+    # Restore seat to the booking's class
+    seat_class_row = db.query(FlightSeatClass).filter(
+        FlightSeatClass.flight_id == booking.flight_id,
+        FlightSeatClass.seat_class == booking.seat_class
+    ).first()
+    if seat_class_row:
+        seat_class_row.seats_available += 1
 
     booking.status = "cancelled"
     db.commit()

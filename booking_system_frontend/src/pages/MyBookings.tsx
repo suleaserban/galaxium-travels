@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import type { Booking, Flight } from '../types';
+import type { Booking, Flight, ErrorResponse } from '../types';
 import { LoadingSpinner, Modal, Button } from '../components/common';
 import { BookingCard } from '../components/bookings/BookingCard';
 import { getUserBookings, getFlights, cancelBooking, isErrorResponse } from '../services/api';
@@ -19,15 +19,7 @@ export const MyBookings = () => {
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [bookingToCancel, setBookingToCancel] = useState<number | null>(null);
 
-  useEffect(() => {
-    if (!user) {
-      navigate('/flights');
-      return;
-    }
-    loadData();
-  }, [user, navigate]);
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     if (!user) return;
 
     setIsLoading(true);
@@ -38,13 +30,21 @@ export const MyBookings = () => {
       ]);
       setBookings(bookingsData);
       setFlights(flightsData);
-    } catch (error: any) {
+    } catch (error) {
       toast.error('Failed to load bookings');
       console.error(error);
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) {
+      navigate('/flights');
+      return;
+    }
+    loadData();
+  }, [user, navigate, loadData]);
 
   const handleCancelClick = (bookingId: number) => {
     setBookingToCancel(bookingId);
@@ -67,8 +67,9 @@ export const MyBookings = () => {
 
       toast.success('Booking cancelled successfully');
       loadData(); // Reload bookings
-    } catch (error: any) {
-      toast.error(error.details || error.error || 'Failed to cancel booking');
+    } catch (error) {
+      const err = error as Partial<ErrorResponse>;
+      toast.error(err.details || err.error || 'Failed to cancel booking');
     } finally {
       setCancellingId(null);
       setBookingToCancel(null);

@@ -1,8 +1,14 @@
 import { useState } from 'react';
-import type { Flight } from '../../types';
+import type { Flight, SeatClass, ErrorResponse } from '../../types';
 import { Modal, Button } from '../common';
 import { Plane, Calendar, Clock, DollarSign } from 'lucide-react';
-import { formatCurrency, formatDate, calculateDuration } from '../../utils/formatters';
+import {
+  formatCurrency,
+  formatDate,
+  calculateDuration,
+  SEAT_CLASS_LABELS,
+  getSeatClass,
+} from '../../utils/formatters';
 import { bookFlight, isErrorResponse } from '../../services/api';
 import { useUser } from '../../hooks/useUser';
 import toast from 'react-hot-toast';
@@ -17,12 +23,33 @@ interface BookingModalProps {
 export const BookingModal = ({ isOpen, onClose, flight, onSuccess }: BookingModalProps) => {
   const { user } = useUser();
   const [isLoading, setIsLoading] = useState(false);
+  const [chosenClass, setChosenClass] = useState<SeatClass | null>(null);
 
   if (!flight) return null;
+
+  const classOptions = (Object.keys(SEAT_CLASS_LABELS) as SeatClass[])
+    .map((seatClass) => getSeatClass(flight, seatClass))
+    .filter((sc) => sc !== undefined);
+  const isAvailable = (seatClass: SeatClass | null) =>
+    classOptions.some((sc) => sc.seat_class === seatClass && sc.seats_available > 0);
+  // Keep the user's choice while it is bookable on this flight; otherwise default to the first available class
+  const selectedClass = isAvailable(chosenClass)
+    ? chosenClass
+    : classOptions.find((sc) => sc.seats_available > 0)?.seat_class ?? null;
+  const selectedOption = classOptions.find((sc) => sc.seat_class === selectedClass);
+
+  const handleClose = () => {
+    setChosenClass(null);
+    onClose();
+  };
 
   const handleConfirmBooking = async () => {
     if (!user) {
       toast.error('Please sign in to book a flight');
+      return;
+    }
+    if (!selectedClass) {
+      toast.error('Please select a seat class');
       return;
     }
 
@@ -33,6 +60,7 @@ export const BookingModal = ({ isOpen, onClose, flight, onSuccess }: BookingModa
         user_id: user.user_id,
         name: user.name,
         flight_id: flight.flight_id,
+        seat_class: selectedClass,
       });
 
       if (isErrorResponse(result)) {
@@ -42,9 +70,10 @@ export const BookingModal = ({ isOpen, onClose, flight, onSuccess }: BookingModa
 
       toast.success('Flight booked successfully!');
       onSuccess();
-      onClose();
-    } catch (error: any) {
-      toast.error(error.details || error.error || 'Failed to book flight');
+      handleClose();
+    } catch (error) {
+      const err = error as Partial<ErrorResponse>;
+      toast.error(err.details || err.error || 'Failed to book flight');
     } finally {
       setIsLoading(false);
     }
@@ -53,7 +82,7 @@ export const BookingModal = ({ isOpen, onClose, flight, onSuccess }: BookingModa
   return (
     <Modal
       isOpen={isOpen}
-      onClose={onClose}
+      onClose={handleClose}
       title="Confirm Your Booking"
       size="md"
     >
@@ -121,6 +150,42 @@ export const BookingModal = ({ isOpen, onClose, flight, onSuccess }: BookingModa
           </div>
         )}
 
+        {/* Seat Class */}
+        <div className="glass-card p-4 bg-white/5">
+          <h4 className="text-sm font-semibold text-star-white mb-2">Seat Class</h4>
+          <div className="space-y-2" role="radiogroup" aria-label="Seat class">
+            {classOptions.map((sc) => {
+              const soldOut = sc.seats_available === 0;
+              const isSelected = sc.seat_class === selectedClass;
+              return (
+                <button
+                  key={sc.seat_class}
+                  type="button"
+                  role="radio"
+                  aria-checked={isSelected}
+                  disabled={soldOut || isLoading}
+                  onClick={() => setChosenClass(sc.seat_class)}
+                  className={`w-full flex items-center justify-between p-3 rounded-lg border transition-colors ${
+                    isSelected
+                      ? 'border-cosmic-purple bg-cosmic-purple/20'
+                      : 'border-white/10 hover:border-white/30'
+                  } ${soldOut ? 'opacity-50 cursor-not-allowed' : ''}`}
+                >
+                  <span className="text-star-white font-medium">
+                    {SEAT_CLASS_LABELS[sc.seat_class]}
+                  </span>
+                  <span className="flex items-center gap-3">
+                    <span className={`text-xs ${soldOut ? 'text-red-500' : 'text-star-white/60'}`}>
+                      {soldOut ? 'Sold Out' : `${sc.seats_available} seats`}
+                    </span>
+                    <span className="text-star-white font-bold">{formatCurrency(sc.price)}</span>
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
         {/* Price */}
         <div className="flex items-center justify-between p-4 glass-card bg-cosmic-gradient">
           <div className="flex items-center gap-2">
@@ -128,7 +193,7 @@ export const BookingModal = ({ isOpen, onClose, flight, onSuccess }: BookingModa
             <span className="text-white font-semibold">Total Price</span>
           </div>
           <span className="text-2xl font-bold text-white">
-            {formatCurrency(flight.price)}
+            {selectedOption ? formatCurrency(selectedOption.price) : '—'}
           </span>
         </div>
 
@@ -136,7 +201,7 @@ export const BookingModal = ({ isOpen, onClose, flight, onSuccess }: BookingModa
         <div className="flex gap-3">
           <Button
             variant="secondary"
-            onClick={onClose}
+            onClick={handleClose}
             disabled={isLoading}
             className="flex-1"
           >
@@ -145,6 +210,7 @@ export const BookingModal = ({ isOpen, onClose, flight, onSuccess }: BookingModa
           <Button
             onClick={handleConfirmBooking}
             isLoading={isLoading}
+            disabled={!selectedClass}
             className="flex-1"
           >
             Confirm Booking

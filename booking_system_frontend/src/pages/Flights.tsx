@@ -47,7 +47,7 @@ export const Flights = () => {
       const data = await getFlights();
       setFlights(data);
       setFilteredFlights(data);
-    } catch (error: any) {
+    } catch (error) {
       toast.error('Failed to load flights');
       console.error(error);
     } finally {
