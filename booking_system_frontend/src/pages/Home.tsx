@@ -72,9 +72,11 @@ export const Home = () => {
               Explore Flights
             </Button>
           </Link>
-          <Button variant="secondary" size="lg" className="w-full sm:w-auto">
-            Learn More
-          </Button>
+          <Link to="/flights">
+            <Button variant="secondary" size="lg" className="w-full sm:w-auto">
+              Learn More
+            </Button>
+          </Link>
         </motion.div>
       </motion.section>
 
